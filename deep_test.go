@@ -1444,6 +1444,22 @@ func TestEqualSubsetWithDifferentNumberOfKeys(t *testing.T) {
 	}
 }
 
+func TestEqualSubsetWithEmptyString(t *testing.T) {
+	type student struct {
+		Name string
+		Age  int
+		Arr  []string
+	}
+
+	left := student{"", 10, []string{"same1", "same2", "really-different"}}
+	right := student{"mark", 10, []string{"same1", "same2", "different"}}
+
+	_, isSame := deep.EqualSubset(left, right, nil,true, false)
+
+	if isSame {
+		t.Error("This should not be a subset match")
+	}
+}
 
 func TestEqualSubsetWithOneDifferringKey(t *testing.T) {
 	type student struct {

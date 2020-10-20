@@ -397,6 +397,10 @@ func (c *cmp) equals(a, b reflect.Value, level int, silent bool) bool {
 		}
 		return true
 	case reflect.String:
+		//In a subset match we treat empty strings as always matching
+		if c.subsetMatch && len(a.String()) == 0 {
+			return true
+		}
 		if a.String() != b.String() {
 			c.saveDiff(a.String(), b.String(), silent)
 			return false
