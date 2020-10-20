@@ -1580,7 +1580,7 @@ func TestTypeMismatch(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[deep.Root] != "github.com/go-test/deep/test/v1.Error != github.com/go-test/deep/test/v2.Error" {
+	if diff[deep.Root] != "github.com/instana/deep/test/v1.Error != github.com/instana/deep/test/v2.Error" {
 		t.Error("wrong diff:", diff[deep.Root])
 	}
 }
