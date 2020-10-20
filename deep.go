@@ -279,6 +279,9 @@ func (c *cmp) equals(a, b reflect.Value, level int, silent bool) bool {
 		*/
 
 		if a.IsNil() || b.IsNil() {
+			if a.IsNil() && c.subsetMatch {
+				return true
+			}
 			if NilMapsAreEmpty {
 				if a.IsNil() && b.Len() != 0 {
 					c.saveDiff("<nil map>", b, silent)
@@ -323,18 +326,19 @@ func (c *cmp) equals(a, b reflect.Value, level int, silent bool) bool {
 				return false
 			}
 		}
+		if !c.subsetMatch {
+			for _, key := range b.MapKeys() {
+				if aVal := a.MapIndex(key); aVal.IsValid() {
+					continue
+				}
 
-		for _, key := range b.MapKeys() {
-			if aVal := a.MapIndex(key); aVal.IsValid() {
-				continue
-			}
-
-			c.push(fmt.Sprintf("map[%v]", key), silent)
-			c.saveDiff("<does not have key>", b.MapIndex(key), silent)
-			c.pop(silent)
-			isSame = false
-			if len(c.diff) >= MaxDiff {
-				return false
+				c.push(fmt.Sprintf("map[%v]", key), silent)
+				c.saveDiff("<does not have key>", b.MapIndex(key), silent)
+				c.pop(silent)
+				isSame = false
+				if len(c.diff) >= MaxDiff {
+					return false
+				}
 			}
 		}
 		return isSame

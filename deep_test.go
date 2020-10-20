@@ -1461,6 +1461,31 @@ func TestEqualSubsetWithEmptyString(t *testing.T) {
 	}
 }
 
+func TestEqualSubsetWithMaps(t *testing.T) {
+	type student struct {
+		Name string
+		Age  int
+		Arr  []string
+		Map  map[string]string
+	}
+
+	leftMap := make(map[string]string)
+	rightMap := make(map[string]string)
+	rightMap["bla"] = "blue"
+
+	left := student{"", 10, []string{"same1", "same2", "different"}, leftMap}
+	right := student{"mark", 10, []string{"same1", "same2", "different"}, rightMap}
+
+	diff, isSame := deep.EqualSubset(left, right, nil,true, false)
+
+	if !isSame {
+		for s, s2 := range diff {
+			println(s+ " " +s2)
+		}
+		t.Error("This should be a subset match")
+	}
+}
+
 func TestEqualSubsetWithOneDifferringKey(t *testing.T) {
 	type student struct {
 		Name string
