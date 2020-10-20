@@ -3,13 +3,13 @@ package deep_test
 import (
 	"errors"
 	"fmt"
+	"github.com/instana/deep"
 	"reflect"
 	"testing"
 	"time"
+	v1 "github.com/instana/deep/test/v1"
+	v2 "github.com/instana/deep/test/v2"
 
-	"github.com/go-test/deep"
-	v1 "github.com/go-test/deep/test/v1"
-	v2 "github.com/go-test/deep/test/v2"
 )
 
 func TestString(t *testing.T) {
@@ -25,8 +25,8 @@ func TestString(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "foo != bar" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "foo != bar" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 }
 
@@ -57,8 +57,8 @@ func TestFloat(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "1.123456 != 1.123457" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "1.123456 != 1.123457" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 
 }
@@ -76,8 +76,8 @@ func TestInt(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "1 != 2" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "1 != 2" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 }
 
@@ -94,8 +94,8 @@ func TestUint(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "2 != 3" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "2 != 3" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 }
 
@@ -117,40 +117,8 @@ func TestBool(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "true != false" { // unless you're fipar
-		t.Error("wrong diff:", diff[0])
-	}
-}
-
-func TestTypeMismatch(t *testing.T) {
-	type T1 int // same type kind (int)
-	type T2 int // but different type
-	var t1 T1 = 1
-	var t2 T2 = 1
-	diff := deep.Equal(t1, t2)
-	if diff == nil {
-		t.Fatal("no diff")
-	}
-	if len(diff) != 1 {
-		t.Error("too many diff:", diff)
-	}
-	if diff[0] != "deep_test.T1 != deep_test.T2" {
-		t.Error("wrong diff:", diff[0])
-	}
-
-	// Same pkg name but differnet full paths
-	// https://github.com/go-test/deep/issues/39
-	err1 := v1.Error{}
-	err2 := v2.Error{}
-	diff = deep.Equal(err1, err2)
-	if diff == nil {
-		t.Fatal("no diff")
-	}
-	if len(diff) != 1 {
-		t.Error("too many diff:", diff)
-	}
-	if diff[0] != "github.com/go-test/deep/test/v1.Error != github.com/go-test/deep/test/v2.Error" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "true != false" { // unless you're fipar
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 }
 
@@ -166,8 +134,8 @@ func TestKindMismatch(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "int != float64" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "int != float64" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 
 	deep.LogErrors = false
@@ -221,8 +189,8 @@ func TestDeepRecursion(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "map[foo].S.S.S: 42 != 100" {
-		t.Error("wrong diff:", diff[0])
+	if diff["map[foo].S.S.S"] != "42 != 100" {
+		t.Error("wrong diff:", diff["map[foo].S.S.S"])
 	}
 }
 
@@ -344,8 +312,8 @@ func TestStruct(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "Name: foo != bar" {
-		t.Error("wrong diff:", diff[0])
+	if diff["Name"] != "foo != bar" {
+		t.Error("wrong diff:", diff["Name"])
 	}
 
 	sb.Number = 22
@@ -356,11 +324,11 @@ func TestStruct(t *testing.T) {
 	if len(diff) != 2 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "Name: foo != bar" {
-		t.Error("wrong diff:", diff[0])
+	if diff["Name"] != "foo != bar" {
+		t.Error("wrong diff:", diff["Name"])
 	}
-	if diff[1] != "Number: 2 != 22" {
-		t.Error("wrong diff:", diff[1])
+	if diff["Number"] != "2 != 22" {
+		t.Error("wrong diff:", diff["Number"])
 	}
 
 	sb.id = 11
@@ -371,11 +339,11 @@ func TestStruct(t *testing.T) {
 	if len(diff) != 2 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "Name: foo != bar" {
-		t.Error("wrong diff:", diff[0])
+	if diff["Name"] != "foo != bar" {
+		t.Error("wrong diff:", diff["Name"])
 	}
-	if diff[1] != "Number: 2 != 22" {
-		t.Error("wrong diff:", diff[1])
+	if diff["Number"] != "2 != 22" {
+		t.Error("wrong diff:", diff["Number"])
 	}
 }
 
@@ -489,18 +457,19 @@ func TestStructWithTags(t *testing.T) {
 	diff := deep.Equal(sa, sb)
 	deep.CompareUnexportedFields = orig
 
-	want := []string{
-		"s1.modified: 1 != 10",
-		"s1.ExportedModified: 5 != 50",
-		"modified: 1 != 10",
-		"ExportedModified: 5 != 50",
-		"recurseInline.modified: 1 != 10",
-		"recurseInline.ExportedModified: 5 != 50",
-		"recursePtr.modified: 1 != 10",
-		"recursePtr.ExportedModified: 5 != 50",
+	want := map[string]string{
+		"s1.modified": "1 != 10",
+		"s1.ExportedModified": "5 != 50",
+		"modified": "1 != 10",
+		"ExportedModified": "5 != 50",
+		"recurseInline.modified": "1 != 10",
+		"recurseInline.ExportedModified": "5 != 50",
+		"recursePtr.modified": "1 != 10",
+		"recursePtr.ExportedModified": "5 != 50",
 	}
+
 	if !reflect.DeepEqual(want, diff) {
-		t.Errorf("got %v, want %v", diff, want)
+		t.Errorf("\ngot  %v, \nwant %v", diff, want)
 	}
 }
 
@@ -530,8 +499,8 @@ func TestNestedStruct(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "Alias.Nickname: Bob != Bobby" {
-		t.Error("wrong diff:", diff[0])
+	if diff["Alias.Nickname"] != "Bob != Bobby" {
+		t.Error("wrong diff:", diff["Alias.Nickname"])
 	}
 }
 
@@ -562,8 +531,8 @@ func TestMap(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "map[foo]: 1 != 111" {
-		t.Error("wrong diff:", diff[0])
+	if diff["map[foo]"] != "1 != 111" {
+		t.Error("wrong diff:", diff["map[foo]"])
 	}
 
 	delete(mb, "foo")
@@ -574,8 +543,8 @@ func TestMap(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "map[foo]: 1 != <does not have key>" {
-		t.Error("wrong diff:", diff[0])
+	if diff["map[foo]"] != "1 != <does not have key>" {
+		t.Error("wrong diff:", diff["map[foo]"])
 	}
 
 	diff = deep.Equal(mb, ma)
@@ -585,8 +554,8 @@ func TestMap(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "map[foo]: <does not have key> != 1" {
-		t.Error("wrong diff:", diff[0])
+	if diff["map[foo]"] != "<does not have key> != 1" {
+		t.Error("wrong diff:", diff["map[foo]"])
 	}
 
 	var mc map[string]int
@@ -598,8 +567,8 @@ func TestMap(t *testing.T) {
 		t.Error("too many diff:", diff)
 	}
 	// handle hash order randomness
-	if diff[0] != "map[foo:1 bar:2] != <nil map>" && diff[0] != "map[bar:2 foo:1] != <nil map>" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "map[foo:1 bar:2] != <nil map>" && diff[deep.Root] != "map[bar:2 foo:1] != <nil map>" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 
 	diff = deep.Equal(mc, ma)
@@ -609,8 +578,8 @@ func TestMap(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "<nil map> != map[foo:1 bar:2]" && diff[0] != "<nil map> != map[bar:2 foo:1]" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "<nil map> != map[foo:1 bar:2]" && diff[deep.Root] != "<nil map> != map[bar:2 foo:1]" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 }
 
@@ -636,8 +605,8 @@ func TestArray(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "array[2]: 3 != 333" {
-		t.Error("wrong diff:", diff[0])
+	if diff["array[2]"] != "3 != 333" {
+		t.Error("wrong diff:", diff["array[2]"])
 	}
 
 	c := [3]int{1, 2, 2}
@@ -648,8 +617,8 @@ func TestArray(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "array[2]: 3 != 2" {
-		t.Error("wrong diff:", diff[0])
+	if diff["array[2]"] != "3 != 2" {
+		t.Error("wrong diff:", diff["array[2]"])
 	}
 
 	var d [2]int
@@ -660,8 +629,8 @@ func TestArray(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "[3]int != [2]int" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "[3]int != [2]int" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 
 	e := [12]int{}
@@ -674,8 +643,8 @@ func TestArray(t *testing.T) {
 		t.Error("not enough diffs:", diff)
 	}
 	for i := 0; i < deep.MaxDiff; i++ {
-		if diff[i] != fmt.Sprintf("array[%d]: 0 != %d", i+1, i+1) {
-			t.Error("wrong diff:", diff[i])
+		if diff[fmt.Sprintf("array[%d]", i+1)] != fmt.Sprintf("0 != %d", i+1) {
+			t.Error("wrong diff:", diff[fmt.Sprintf("array[%d]", i+1)])
 		}
 	}
 }
@@ -702,8 +671,8 @@ func TestSlice(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "slice[2]: 3 != 333" {
-		t.Error("wrong diff:", diff[0])
+	if diff["slice[2]"] != "3 != 333" {
+		t.Error("wrong diff:", diff["slice[2]"])
 	}
 
 	b = b[0:2]
@@ -714,8 +683,8 @@ func TestSlice(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "slice[2]: 3 != <no value>" {
-		t.Error("wrong diff:", diff[0])
+	if diff["slice[2]"] != "3 != <no value>" {
+		t.Error("wrong diff:", diff["slice[2]"])
 	}
 
 	diff = deep.Equal(b, a)
@@ -725,8 +694,8 @@ func TestSlice(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "slice[2]: <no value> != 3" {
-		t.Error("wrong diff:", diff[0])
+	if diff["slice[2]"] != "<no value> != 3" {
+		t.Error("wrong diff:", diff["slice[2]"])
 	}
 
 	var c []int
@@ -737,8 +706,8 @@ func TestSlice(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "[1 2 3] != <nil slice>" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "[1 2 3] != <nil slice>" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 
 	diff = deep.Equal(c, a)
@@ -748,8 +717,8 @@ func TestSlice(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "<nil slice> != [1 2 3]" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "<nil slice> != [1 2 3]" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 }
 
@@ -776,8 +745,8 @@ func TestSiblingSlices(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "slice[2]: 3 != <no value>" {
-		t.Error("wrong diff:", diff[0])
+	if diff["slice[2]"] != "3 != <no value>" {
+		t.Error("wrong diff:", diff["slice[2]"])
 	}
 
 	a = father[0:2]
@@ -790,8 +759,8 @@ func TestSiblingSlices(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "slice[2]: <no value> != 3" {
-		t.Error("wrong diff:", diff[0])
+	if diff["slice[2]"] != "<no value> != 3" {
+		t.Error("wrong diff:", diff["slice[2]"])
 	}
 
 	a = father[0:2]
@@ -804,11 +773,11 @@ func TestSiblingSlices(t *testing.T) {
 	if len(diff) != 2 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "slice[0]: 1 != 3" {
-		t.Error("wrong diff:", diff[0])
+	if diff["slice[0]"] != "1 != 3" {
+		t.Error("wrong diff:", diff["slice[0]"])
 	}
-	if diff[1] != "slice[1]: 2 != 4" {
-		t.Error("wrong diff:", diff[1])
+	if diff["slice[1]"] != "2 != 4" {
+		t.Error("wrong diff:", diff["slice[1]"])
 	}
 
 	a = father[0:0]
@@ -837,8 +806,8 @@ func TestEmptySlice(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "slice[0]: 1 != <no value>" {
-		t.Error("wrong diff:", diff[0])
+	if diff["slice[0]"] != "1 != <no value>" {
+		t.Error("wrong diff:", diff["slice[0]"])
 	}
 
 	// Empty is not equal to non-empty.
@@ -849,8 +818,8 @@ func TestEmptySlice(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "slice[0]: <no value> != 1" {
-		t.Error("wrong diff:", diff[0])
+	if diff["slice[0]"] != "<no value> != 1" {
+		t.Error("wrong diff:", diff["slice[0]"])
 	}
 
 	// Empty is not equal to nil.
@@ -861,8 +830,8 @@ func TestEmptySlice(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "[] != <nil slice>" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "[] != <nil slice>" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 
 	// Nil is not equal to empty.
@@ -873,8 +842,8 @@ func TestEmptySlice(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "<nil slice> != []" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "<nil slice> != []" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 }
 
@@ -907,8 +876,8 @@ func TestNilSlicesAreEmpty(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "[1] != <nil slice>" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "[1] != <nil slice>" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 
 	// Nil is not equal to non-empty.
@@ -919,8 +888,8 @@ func TestNilSlicesAreEmpty(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "<nil slice> != [1]" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "<nil slice> != [1]" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 
 	// Non-empty is not equal to empty.
@@ -931,8 +900,8 @@ func TestNilSlicesAreEmpty(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "slice[0]: 1 != <no value>" {
-		t.Error("wrong diff:", diff[0])
+	if diff["slice[0]"] != "1 != <no value>" {
+		t.Error("wrong diff:", diff["slice[0]"])
 	}
 
 	// Empty is not equal to non-empty.
@@ -943,8 +912,8 @@ func TestNilSlicesAreEmpty(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "slice[0]: <no value> != 1" {
-		t.Error("wrong diff:", diff[0])
+	if diff["slice[0]"] != "<no value> != 1" {
+		t.Error("wrong diff:", diff["slice[0]"])
 	}
 }
 
@@ -977,8 +946,8 @@ func TestNilMapsAreEmpty(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "map[1:1] != <nil map>" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "map[1:1] != <nil map>" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 
 	// Nil is not equal to non-empty.
@@ -989,8 +958,8 @@ func TestNilMapsAreEmpty(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "<nil map> != map[1:1]" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "<nil map> != map[1:1]" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 
 	// Non-empty is not equal to empty.
@@ -1001,8 +970,8 @@ func TestNilMapsAreEmpty(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "map[1]: 1 != <does not have key>" {
-		t.Error("wrong diff:", diff[0])
+	if diff["map[1]"] != "1 != <does not have key>" {
+		t.Error("wrong diff:", diff["map[1]"])
 	}
 
 	// Empty is not equal to non-empty.
@@ -1013,8 +982,8 @@ func TestNilMapsAreEmpty(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "map[1]: <does not have key> != 1" {
-		t.Error("wrong diff:", diff[0])
+	if diff["map[1]"] != "<does not have key> != 1" {
+		t.Error("wrong diff:", diff["map[1]"])
 	}
 }
 
@@ -1029,8 +998,8 @@ func TestNilInterface(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "<nil pointer> != &{1}" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "<nil pointer> != &{1}" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 
 	diff = deep.Equal(a, nil)
@@ -1040,8 +1009,8 @@ func TestNilInterface(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "&{1} != <nil pointer>" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "&{1} != <nil pointer>" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 
 	diff = deep.Equal(nil, nil)
@@ -1067,8 +1036,8 @@ func TestPointer(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "<nil pointer> != deep_test.T" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "<nil pointer> != deep_test.T" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 
 	a, b = &T{}, nil
@@ -1079,8 +1048,8 @@ func TestPointer(t *testing.T) {
 	if len(diff) != 1 {
 		t.Error("too many diff:", diff)
 	}
-	if diff[0] != "deep_test.T != <nil pointer>" {
-		t.Error("wrong diff:", diff[0])
+	if diff[deep.Root] != "deep_test.T != <nil pointer>" {
+		t.Error("wrong diff:", deep.Root)
 	}
 
 	a, b = nil, nil
@@ -1250,8 +1219,8 @@ func TestError(t *testing.T) {
 	if len(diff) != 1 {
 		t.Fatalf("expected 1 diff, got %d: %s", len(diff), diff)
 	}
-	if diff[0] != "it broke != it fell apart" {
-		t.Errorf("got '%s', expected 'it broke != it fell apart'", diff[0])
+	if diff[deep.Root] != "it broke != it fell apart" {
+		t.Errorf("got '%s', expected 'it broke != it fell apart'", diff[deep.Root])
 	}
 
 	// Both errors set
@@ -1268,8 +1237,8 @@ func TestError(t *testing.T) {
 	if len(diff) != 1 {
 		t.Fatalf("expected 1 diff, got %d: %s", len(diff), diff)
 	}
-	if diff[0] != "Error: it broke != it fell apart" {
-		t.Errorf("got '%s', expected 'Error: it broke != it fell apart'", diff[0])
+	if diff["Error"] != "it broke != it fell apart" {
+		t.Errorf("got '%s', expected 'Error: it broke != it fell apart'", diff["Error"])
 	}
 
 	// Both errors nil
@@ -1297,8 +1266,8 @@ func TestError(t *testing.T) {
 		t.Log(diff)
 		t.Fatalf("expected 1 diff, got %d: %s", len(diff), diff)
 	}
-	if diff[0] != "Error: *errors.errorString != <nil pointer>" {
-		t.Errorf("got '%s', expected 'Error: *errors.errorString != <nil pointer>'", diff[0])
+	if diff["Error"] != "*errors.errorString != <nil pointer>" {
+		t.Errorf("got '%s', expected 'Error: *errors.errorString != <nil pointer>'", diff["Error"])
 	}
 }
 
@@ -1316,8 +1285,8 @@ func TestErrorWithOtherFields(t *testing.T) {
 	if len(diff) != 1 {
 		t.Fatalf("expected 1 diff, got %d: %s", len(diff), diff)
 	}
-	if diff[0] != "it broke != it fell apart" {
-		t.Errorf("got '%s', expected 'it broke != it fell apart'", diff[0])
+	if diff[deep.Root] != "it broke != it fell apart" {
+		t.Errorf("got '%s', expected 'it broke != it fell apart'", diff[deep.Root])
 	}
 
 	// Both errors set
@@ -1337,8 +1306,8 @@ func TestErrorWithOtherFields(t *testing.T) {
 	if len(diff) != 1 {
 		t.Fatalf("expected 1 diff, got %d: %s", len(diff), diff)
 	}
-	if diff[0] != "Error: it broke != it fell apart" {
-		t.Errorf("got '%s', expected 'Error: it broke != it fell apart'", diff[0])
+	if diff["Error"] != "it broke != it fell apart" {
+		t.Errorf("got '%s', expected 'Error: it broke != it fell apart'", diff["Error"])
 	}
 
 	// Both errors nil
@@ -1369,8 +1338,8 @@ func TestErrorWithOtherFields(t *testing.T) {
 	if len(diff) != 1 {
 		t.Fatalf("expected 1 diff, got %d: %s", len(diff), diff)
 	}
-	if diff[0] != "Other: ok != nope" {
-		t.Errorf("got '%s', expected 'Other: ok != nope'", diff[0])
+	if diff["Other"] != "ok != nope" {
+		t.Errorf("got '%s', expected 'Other: ok != nope'", diff["Other"])
 	}
 
 	// Different Other value, same error
@@ -1386,8 +1355,8 @@ func TestErrorWithOtherFields(t *testing.T) {
 	if len(diff) != 1 {
 		t.Fatalf("expected 1 diff, got %d: %s", len(diff), diff)
 	}
-	if diff[0] != "Other: ok != nope" {
-		t.Errorf("got '%s', expected 'Other: ok != nope'", diff[0])
+	if diff["Other"] != "ok != nope" {
+		t.Errorf("got '%s', expected 'Other: ok != nope'", diff["Other"])
 	}
 }
 
@@ -1430,5 +1399,188 @@ func TestNil(t *testing.T) {
 	diff = deep.Equal(someNilThing, someNilThing)
 	if diff != nil {
 		t.Error("Nil value to comparison should not be equal")
+	}
+}
+
+
+func TestEqualSubsetWithMixedKeys(t *testing.T) {
+	type student struct {
+		Name string
+		Age  int
+		Arr  []string
+	}
+
+	left := student{"mark", 10, []string{"same1", "different", "same2"}}
+	right := student{"mark", 10, []string{"same1", "same2", "different"}}
+
+	diff, isSame := deep.EqualSubset(left, right, nil, true, false)
+
+	if !isSame {
+		for i, s := range diff {
+			println(fmt.Sprint(i) + " " + s)
+		}
+		t.Error("This should be a subset match")
+	}
+}
+
+
+func TestEqualSubsetWithDifferentNumberOfKeys(t *testing.T) {
+	type student struct {
+		Name string
+		Age  int
+		Arr  []string
+	}
+
+	left := student{"mark", 10, []string{"same1", "same2"}}
+	right := student{"mark", 10, []string{"same1", "same2", "different"}}
+
+	diff, isSame := deep.EqualSubset(left, right, nil,true, false)
+
+	if !isSame {
+		for i, s := range diff {
+			println(fmt.Sprint(i) + " " + s)
+		}
+		t.Error("This should be a subset match")
+	}
+}
+
+
+func TestEqualSubsetWithOneDifferringKey(t *testing.T) {
+	type student struct {
+		Name string
+		Age  int
+		Arr  []string
+	}
+
+	left := student{"mark", 10, []string{"same1", "same2", "really-different"}}
+	right := student{"mark", 10, []string{"same1", "same2", "different"}}
+
+	_, isSame := deep.EqualSubset(left, right, nil,true, false)
+
+	if isSame {
+		t.Error("This should not be a subset match")
+	}
+}
+
+
+func TestEqualSubsetWithNils(t *testing.T) {
+	type Nested struct {
+		NestedName string
+	}
+
+	type student struct {
+		Name string
+		Age  int
+		Nested *Nested
+		Arr  []string
+	}
+
+	nested := &Nested{"I AM NESTED!!!"}
+	left := student{Name: "mark", Age: 10, Arr: []string{"same1", "same2"}}
+	right := student{"mark", 10, nested, []string{"same1", "same2"}}
+
+	diff, isSame := deep.EqualSubset(left, right, nil, true, false)
+
+	if !isSame {
+		for i, s := range diff {
+			println(fmt.Sprint(i) + " " + s)
+		}
+		t.Error("This should be a subset match")
+	}
+}
+
+
+func TestEqualSubsetWithNestedStruct(t *testing.T) {
+	type Nested struct {
+		NestedName string
+	}
+
+	type student struct {
+		Name string
+		Age  int
+		Nested *Nested
+		Arr  []string
+	}
+
+	nestedLeft := &Nested{"I AM NESTED!!!"}
+	nestedRight := &Nested{"I AM NESTED!!!"}
+	left := student{ "mark",  10, nestedLeft, []string{"same1", "same2"}}
+	right := student{"mark", 10, nestedRight, []string{"same1", "same2"}}
+
+	diff, isSame := deep.EqualSubset(left, right, nil,true, false)
+
+	if !isSame {
+		for i, s := range diff {
+			println(fmt.Sprint(i) + " " + s)
+		}
+		t.Error("This should be a subset match")
+	}
+}
+
+
+func TestEqualSubsetWithIgrnoredPath(t *testing.T) {
+	type DeeplyNested struct {
+		NestedName string
+	}
+
+	type Nested struct {
+		NestedName string
+		DeeplyNested *DeeplyNested
+	}
+
+	type student struct {
+		Name string
+		Age  int
+		Nested *Nested
+		Arr  []string
+	}
+
+	deeplyNested := &DeeplyNested{"I AM DEEPLY NESTED!!!"}
+	nestedRight := &Nested{"I AM NESTED!!!", nil}
+	nestedLeft := &Nested{"I AM NESTED!!!", deeplyNested}
+	left := student{ "mark",  10, nestedLeft, []string{"same1", "same2"}}
+	right := student{"mark", 10, nestedRight, []string{"same1", "same2"}}
+	ignored := []string{"Nested.DeeplyNested"}
+
+	diff, isSame := deep.EqualSubset(left, right, ignored,true, false)
+
+	if !isSame {
+		for i, s := range diff {
+			println(fmt.Sprint(i) + " " + s)
+		}
+		t.Error("This should be a subset match")
+	}
+}
+
+
+func TestTypeMismatch(t *testing.T) {
+	type T1 int // same type kind (int)
+	type T2 int // but different type
+	var t1 T1 = 1
+	var t2 T2 = 1
+	diff := deep.Equal(t1, t2)
+	if diff == nil {
+		t.Fatal("no diff")
+	}
+	if len(diff) != 1 {
+		t.Error("too many diff:", diff)
+	}
+	if diff[deep.Root] != "deep_test.T1 != deep_test.T2" {
+		t.Error("wrong diff:", diff[deep.Root])
+	}
+
+	// Same pkg name but differnet full paths
+	// https://github.com/go-test/deep/issues/39
+	err1 := v1.Error{}
+	err2 := v2.Error{}
+	diff = deep.Equal(err1, err2)
+	if diff == nil {
+		t.Fatal("no diff")
+	}
+	if len(diff) != 1 {
+		t.Error("too many diff:", diff)
+	}
+	if diff[deep.Root] != "github.com/go-test/deep/test/v1.Error != github.com/go-test/deep/test/v2.Error" {
+		t.Error("wrong diff:", diff[deep.Root])
 	}
 }

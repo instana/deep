@@ -1,3 +1,4 @@
+// TAKEN FROM: https://raw.githubusercontent.com/go-test/deep/master/deep.go
 // Package deep provides function deep.Equal which is like reflect.DeepEqual but
 // returns a list of differences. This is helpful when comparing complex types
 // like structures and maps.
@@ -48,13 +49,23 @@ var (
 	ErrNotHandled = errors.New("cannot compare the reflect.Kind")
 )
 
+const Root = "<ROOT>"
+
 type cmp struct {
-	diff        []string
-	buff        []string
-	floatFormat string
+	diff         map[string]string
+	buff         []string
+	floatFormat  string
+	enforceOrder bool
+	subsetMatch  bool
+	ignorePaths  [][]string
 }
 
 var errorType = reflect.TypeOf((*error)(nil)).Elem()
+
+func Equal(a, b interface{}) map[string]string {
+	subset, _ := EqualSubset(a, b, nil,false, true)
+	return subset
+}
 
 // Equal compares variables a and b, recursing into their structure up to
 // MaxDepth levels deep (if greater than zero), and returns a list of differences,
@@ -66,46 +77,61 @@ var errorType = reflect.TypeOf((*error)(nil)).Elem()
 //
 // When comparing a struct, if a field has the tag `deep:"-"` then it will be
 // ignored.
-func Equal(a, b interface{}) []string {
+func EqualSubset(a, b interface{}, ignorePaths []string, subset bool, enforceOrder bool) (map[string]string, bool) {
 	aVal := reflect.ValueOf(a)
 	bVal := reflect.ValueOf(b)
+
+	var ignorePathsAsArray [][]string
+
+	if len(ignorePaths) > 0 {
+		for _, path := range ignorePaths {
+			ignorePathsAsArray = append(ignorePathsAsArray, strings.Split(path, "."))
+		}
+	}
+
 	c := &cmp{
-		diff:        []string{},
-		buff:        []string{},
-		floatFormat: fmt.Sprintf("%%.%df", FloatPrecision),
+		diff:         make(map[string]string),
+		buff:         []string{},
+		floatFormat:  fmt.Sprintf("%%.%df", FloatPrecision),
+		enforceOrder: enforceOrder,
+		subsetMatch:  subset,
+		ignorePaths:  ignorePathsAsArray,
 	}
 	if a == nil && b == nil {
-		return nil
+		return nil, false
 	} else if a == nil && b != nil {
-		c.saveDiff("<nil pointer>", b)
+		c.saveDiff("<nil pointer>", b, false)
 	} else if a != nil && b == nil {
-		c.saveDiff(a, "<nil pointer>")
+		c.saveDiff(a, "<nil pointer>", false)
 	}
 	if len(c.diff) > 0 {
-		return c.diff
+		return c.diff, false
 	}
 
-	c.equals(aVal, bVal, 0)
+	isSame := c.equals(aVal, bVal, 0, false)
 	if len(c.diff) > 0 {
-		return c.diff // diffs
+		return c.diff, isSame // diffs
 	}
-	return nil // no diffs
+	return nil, isSame // no diffs
 }
 
-func (c *cmp) equals(a, b reflect.Value, level int) {
+func (c *cmp) equals(a, b reflect.Value, level int, silent bool) bool {
 	if MaxDepth > 0 && level > MaxDepth {
 		logError(ErrMaxRecursion)
-		return
+		return false
 	}
 
 	// Check if one value is nil, e.g. T{x: *X} and T.x is nil
 	if !a.IsValid() || !b.IsValid() {
-		if a.IsValid() && !b.IsValid() {
-			c.saveDiff(a.Type(), "<nil pointer>")
-		} else if !a.IsValid() && b.IsValid() {
-			c.saveDiff("<nil pointer>", b.Type())
+		if !a.IsValid() && c.subsetMatch {
+			return true
 		}
-		return
+		if a.IsValid() && !b.IsValid() {
+			c.saveDiff(a.Type(), "<nil pointer>", silent)
+		} else if !a.IsValid() && b.IsValid() {
+			c.saveDiff("<nil pointer>", b.Type(), silent)
+		}
+		return false
 	}
 
 	// If different types, they can't be equal
@@ -114,7 +140,7 @@ func (c *cmp) equals(a, b reflect.Value, level int) {
 	if aType != bType {
 		// Built-in types don't have a name, so don't report [3]int != [2]int as " != "
 		if aType.Name() == "" || aType.Name() != bType.Name() {
-			c.saveDiff(aType, bType)
+			c.saveDiff(aType, bType, silent)
 		} else {
 			// Type names can be the same, e.g. pkg/v1.Error and pkg/v2.Error
 			// are both exported as pkg, so unless we include the full pkg path
@@ -122,10 +148,10 @@ func (c *cmp) equals(a, b reflect.Value, level int) {
 			// https://github.com/go-test/deep/issues/39
 			aFullType := aType.PkgPath() + "." + aType.Name()
 			bFullType := bType.PkgPath() + "." + bType.Name()
-			c.saveDiff(aFullType, bFullType)
+			c.saveDiff(aFullType, bFullType, silent)
 		}
 		logError(ErrTypeMismatch)
-		return
+		return false
 	}
 
 	// Primitive https://golang.org/pkg/reflect/#Kind
@@ -145,8 +171,8 @@ func (c *cmp) equals(a, b reflect.Value, level int) {
 			aString := a.MethodByName("Error").Call(nil)[0].String()
 			bString := b.MethodByName("Error").Call(nil)[0].String()
 			if aString != bString {
-				c.saveDiff(aString, bString)
-				return
+				c.saveDiff(aString, bString, silent)
+				return false
 			}
 		}
 	}
@@ -159,8 +185,7 @@ func (c *cmp) equals(a, b reflect.Value, level int) {
 		if bElem {
 			b = b.Elem()
 		}
-		c.equals(a, b, level+1)
-		return
+		return c.equals(a, b, level+1, silent)
 	}
 
 	switch aKind {
@@ -197,12 +222,14 @@ func (c *cmp) equals(a, b reflect.Value, level int) {
 			if funcType.NumIn() == 1 && funcType.In(0) == bType {
 				retVals := eqFunc.Call([]reflect.Value{b})
 				if !retVals[0].Bool() {
-					c.saveDiff(a, b)
+					c.saveDiff(a, b, silent)
+					return false
 				}
-				return
+				return true
 			}
 		}
 
+		isSame := true
 		for i := 0; i < a.NumField(); i++ {
 			if aType.Field(i).PkgPath != "" && !CompareUnexportedFields {
 				continue // skip unexported field, e.g. s in type T struct {s string}
@@ -212,7 +239,11 @@ func (c *cmp) equals(a, b reflect.Value, level int) {
 				continue // field wants to be ignored
 			}
 
-			c.push(aType.Field(i).Name) // push field name to buff
+			c.push(aType.Field(i).Name, silent) // push field name to buff
+			if c.shouldPatheBeIgnored(c.buff) {
+				c.pop(silent)
+				continue
+			}
 
 			// Get the Value for each field, e.g. FirstName has Type = string,
 			// Kind = reflect.String.
@@ -220,14 +251,17 @@ func (c *cmp) equals(a, b reflect.Value, level int) {
 			bf := b.Field(i)
 
 			// Recurse to compare the field values
-			c.equals(af, bf, level+1)
+			if !c.equals(af, bf, level+1, silent) {
+				isSame = false
+			}
 
-			c.pop() // pop field name from buff
+			c.pop(silent) // pop field name from buff
 
 			if len(c.diff) >= MaxDiff {
-				break
+				return false
 			}
 		}
+		return isSame
 	case reflect.Map:
 		/*
 			The variables are maps like:
@@ -247,41 +281,46 @@ func (c *cmp) equals(a, b reflect.Value, level int) {
 		if a.IsNil() || b.IsNil() {
 			if NilMapsAreEmpty {
 				if a.IsNil() && b.Len() != 0 {
-					c.saveDiff("<nil map>", b)
-					return
+					c.saveDiff("<nil map>", b, silent)
 				} else if a.Len() != 0 && b.IsNil() {
-					c.saveDiff(a, "<nil map>")
-					return
+					c.saveDiff(a, "<nil map>", silent)
 				}
+				return false
 			} else {
 				if a.IsNil() && !b.IsNil() {
-					c.saveDiff("<nil map>", b)
+					c.saveDiff("<nil map>", b, silent)
 				} else if !a.IsNil() && b.IsNil() {
-					c.saveDiff(a, "<nil map>")
+					c.saveDiff(a, "<nil map>", silent)
 				}
+				return false
+
 			}
-			return
 		}
 
 		if a.Pointer() == b.Pointer() {
-			return
+			return true
 		}
 
+		isSame := true
+
 		for _, key := range a.MapKeys() {
-			c.push(fmt.Sprintf("map[%v]", key))
+			c.push(fmt.Sprintf("map[%v]", key), silent)
 
 			aVal := a.MapIndex(key)
 			bVal := b.MapIndex(key)
 			if bVal.IsValid() {
-				c.equals(aVal, bVal, level+1)
+				if !c.equals(aVal, bVal, level+1, silent) {
+					isSame = false
+				}
 			} else {
-				c.saveDiff(aVal, "<does not have key>")
+				c.saveDiff(aVal, "<does not have key>", silent)
+				isSame = false
 			}
 
-			c.pop()
+			c.pop(silent)
 
 			if len(c.diff) >= MaxDiff {
-				return
+				return false
 			}
 		}
 
@@ -290,66 +329,34 @@ func (c *cmp) equals(a, b reflect.Value, level int) {
 				continue
 			}
 
-			c.push(fmt.Sprintf("map[%v]", key))
-			c.saveDiff("<does not have key>", b.MapIndex(key))
-			c.pop()
+			c.push(fmt.Sprintf("map[%v]", key), silent)
+			c.saveDiff("<does not have key>", b.MapIndex(key), silent)
+			c.pop(silent)
+			isSame = false
 			if len(c.diff) >= MaxDiff {
-				return
+				return false
 			}
 		}
+		return isSame
 	case reflect.Array:
 		n := a.Len()
+		isSame := true
 		for i := 0; i < n; i++ {
-			c.push(fmt.Sprintf("array[%d]", i))
-			c.equals(a.Index(i), b.Index(i), level+1)
-			c.pop()
+			c.push(fmt.Sprintf("array[%d]", i), silent)
+			if !c.equals(a.Index(i), b.Index(i), level+1, silent) {
+				isSame = false
+			}
+			c.pop(silent)
 			if len(c.diff) >= MaxDiff {
-				break
+				return false
 			}
 		}
+		return isSame
 	case reflect.Slice:
-		if NilSlicesAreEmpty {
-			if a.IsNil() && b.Len() != 0 {
-				c.saveDiff("<nil slice>", b)
-				return
-			} else if a.Len() != 0 && b.IsNil() {
-				c.saveDiff(a, "<nil slice>")
-				return
-			}
+		if c.enforceOrder {
+			return c.CompareSliceWithOrdering(a, b, level, silent)
 		} else {
-			if a.IsNil() && !b.IsNil() {
-				c.saveDiff("<nil slice>", b)
-				return
-			} else if !a.IsNil() && b.IsNil() {
-				c.saveDiff(a, "<nil slice>")
-				return
-			}
-		}
-
-		aLen := a.Len()
-		bLen := b.Len()
-
-		if a.Pointer() == b.Pointer() && aLen == bLen {
-			return
-		}
-
-		n := aLen
-		if bLen > aLen {
-			n = bLen
-		}
-		for i := 0; i < n; i++ {
-			c.push(fmt.Sprintf("slice[%d]", i))
-			if i < aLen && i < bLen {
-				c.equals(a.Index(i), b.Index(i), level+1)
-			} else if i < aLen {
-				c.saveDiff(a.Index(i), "<no value>")
-			} else {
-				c.saveDiff("<no value>", b.Index(i))
-			}
-			c.pop()
-			if len(c.diff) >= MaxDiff {
-				break
-			}
+			return c.CompareSliceWithoutOrdering(a, b, level, silent)
 		}
 
 	/////////////////////////////////////////////////////////////////////
@@ -367,47 +374,180 @@ func (c *cmp) equals(a, b reflect.Value, level int) {
 		aval := fmt.Sprintf(c.floatFormat, a.Float())
 		bval := fmt.Sprintf(c.floatFormat, b.Float())
 		if aval != bval {
-			c.saveDiff(a.Float(), b.Float())
+			c.saveDiff(a.Float(), b.Float(), silent)
+			return false
 		}
+		return true
 	case reflect.Bool:
 		if a.Bool() != b.Bool() {
-			c.saveDiff(a.Bool(), b.Bool())
+			c.saveDiff(a.Bool(), b.Bool(), silent)
+			return false
 		}
+		return true
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if a.Int() != b.Int() {
-			c.saveDiff(a.Int(), b.Int())
+			c.saveDiff(a.Int(), b.Int(), silent)
+			return false
 		}
+		return true
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		if a.Uint() != b.Uint() {
-			c.saveDiff(a.Uint(), b.Uint())
+			c.saveDiff(a.Uint(), b.Uint(), silent)
+			return false
 		}
+		return true
 	case reflect.String:
 		if a.String() != b.String() {
-			c.saveDiff(a.String(), b.String())
+			c.saveDiff(a.String(), b.String(), silent)
+			return false
 		}
+		return true
 
 	default:
 		logError(ErrNotHandled)
 	}
+	return true
 }
 
-func (c *cmp) push(name string) {
-	c.buff = append(c.buff, name)
-}
-
-func (c *cmp) pop() {
-	if len(c.buff) > 0 {
-		c.buff = c.buff[0 : len(c.buff)-1]
-	}
-}
-
-func (c *cmp) saveDiff(aval, bval interface{}) {
-	if len(c.buff) > 0 {
-		varName := strings.Join(c.buff, ".")
-		c.diff = append(c.diff, fmt.Sprintf("%s: %v != %v", varName, aval, bval))
+func (c *cmp) CompareSliceWithOrdering(a reflect.Value, b reflect.Value, level int, silent bool) bool {
+	if NilSlicesAreEmpty {
+		if a.IsNil() && b.Len() != 0 {
+			c.saveDiff("<nil slice>", b, silent)
+			return true
+		} else if a.Len() != 0 && b.IsNil() {
+			c.saveDiff(a, "<nil slice>", silent)
+			return true
+		}
 	} else {
-		c.diff = append(c.diff, fmt.Sprintf("%v != %v", aval, bval))
+		if a.IsNil() && !b.IsNil() {
+			c.saveDiff("<nil slice>", b, silent)
+			return true
+		} else if !a.IsNil() && b.IsNil() {
+			c.saveDiff(a, "<nil slice>", silent)
+			return true
+		}
 	}
+
+	aLen := a.Len()
+	bLen := b.Len()
+
+	if a.Pointer() == b.Pointer() && aLen == bLen {
+		return true
+	}
+
+	n := aLen
+	if bLen > aLen {
+		n = bLen
+	}
+	isSame := true
+	for i := 0; i < n; i++ {
+		c.push(fmt.Sprintf("slice[%d]", i), silent)
+		if i < aLen && i < bLen {
+			if !c.equals(a.Index(i), b.Index(i), level+1, silent) {
+				isSame = false
+			}
+		} else if i < aLen {
+			c.saveDiff(a.Index(i), "<no value>", silent)
+			isSame = false
+		} else {
+			c.saveDiff("<no value>", b.Index(i), silent)
+			isSame = false
+		}
+		c.pop(silent)
+		if len(c.diff) >= MaxDiff {
+			break
+		}
+	}
+	return isSame
+}
+
+func (c *cmp) CompareSliceWithoutOrdering(a reflect.Value, b reflect.Value, level int, silent bool) bool {
+	if a.IsNil() && b.Len() != 0 {
+		//left is empty so it is always a subset
+		return true
+	} else if a.Len() != 0 && b.IsNil() {
+		//left is not empty but the right is, not a subset
+		c.saveDiff(a, "<nil slice>", silent)
+		return true
+	}
+
+	aLen := a.Len()
+	bLen := b.Len()
+
+	if a.Pointer() == b.Pointer() && aLen == bLen {
+		return true
+	}
+
+	n := aLen
+	if bLen > aLen {
+		n = bLen
+		c.saveDiff(aLen, bLen, silent)
+	}
+
+	isSame := true
+	for i := 0; i < n; i++ {
+		c.push(fmt.Sprintf("slice[%d]", i), silent)
+		if i < aLen && i < bLen {
+			//first try if we get away easy by directly matching, maybe the source is ordered ...
+			if !c.equals(a.Index(i), b.Index(i), level+1, true) {
+				found := false
+				for j := 0; j < bLen; j++ {
+					if c.equals(a.Index(i), b.Index(j), level+1, true) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					c.saveDiff(a.Index(i), "<missing>", silent)
+					isSame = false
+				}
+			}
+		} else if i < aLen {
+			c.saveDiff(a.Index(i), "<no value>", silent)
+			isSame = false
+		}
+		c.pop(silent)
+		if len(c.diff) >= MaxDiff {
+			return false
+		}
+	}
+	return isSame
+}
+
+func (c *cmp) push(name string, silent bool) {
+	if !silent {
+		c.buff = append(c.buff, name)
+	}
+}
+
+func (c *cmp) pop(silent bool) {
+	if !silent {
+		if len(c.buff) > 0 {
+			c.buff = c.buff[0 : len(c.buff)-1]
+		}
+	}
+}
+
+func (c *cmp) saveDiff(aval, bval interface{}, silent bool) {
+	if !silent {
+		if len(c.buff) > 0 {
+			varName := strings.Join(c.buff, ".")
+			c.diff[varName] = fmt.Sprintf("%v != %v", aval, bval)
+		} else {
+			c.diff[Root] = fmt.Sprintf("%v != %v", aval, bval)
+		}
+	}
+}
+
+func (c *cmp) shouldPatheBeIgnored(currentPath []string) bool {
+	if len(c.ignorePaths) > 0 {
+		for _, pathToIgnore := range c.ignorePaths {
+			if reflect.DeepEqual(currentPath, pathToIgnore) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func logError(err error) {

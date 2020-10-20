@@ -1,10 +1,12 @@
 # Deep Variable Equality for Humans
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/go-test/deep)](https://goreportcard.com/report/github.com/go-test/deep) [![Build Status](https://travis-ci.org/go-test/deep.svg?branch=master)](https://travis-ci.org/go-test/deep) [![Coverage Status](https://coveralls.io/repos/github/go-test/deep/badge.svg?branch=master)](https://coveralls.io/github/go-test/deep?branch=master) [![GoDoc](https://godoc.org/github.com/go-test/deep?status.svg)](https://pkg.go.dev/github.com/go-test/deep?tab=doc)
+This is a fork of [go-deep](https://github.com/go-test/deep) to add some functionality we required for working with our operators.
 
-This package provides a single function: `deep.Equal`. It's like [reflect.DeepEqual](http://golang.org/pkg/reflect/#DeepEqual) but much friendlier to humans (or any sentient being) for two reason:
+## Original function
 
-* `deep.Equal` returns a list of differences
+This package provides a functions: `deep.Equal`. It's like [reflect.DeepEqual](http://golang.org/pkg/reflect/#DeepEqual) but much friendlier to humans (or any sentient being) for two reason:
+
+* `deep.Equal` returns a map of differences in the form *path-of-difference* => *actusal difference* (the original implementation returned a list of strings)
 * `deep.Equal` does not compare unexported fields (by default)
 
 `reflect.DeepEqual` is good (like all things Golang!), but it's a game of [Hunt the Wumpus](https://en.wikipedia.org/wiki/Hunt_the_Wumpus). For large maps, slices, and structs, finding the difference is difficult.
@@ -16,7 +18,7 @@ package main_test
 
 import (
 	"testing"
-	"github.com/go-test/deep"
+	"github.com/instana/deep"
 )
 
 type T struct {
@@ -49,3 +51,32 @@ $ go test
 ```
 
 The difference is in `Numbers.slice[1]`: the two values aren't equal using Go `==`.
+
+## Extended function
+
+This package now provides a function: `deep.EqualSubset`.
+This function does a match to verify if the left element is a subset of the right element.
+It additionally allows to specify that arrays/slices are equal as long as they contain the same elements, even if not in 
+the same order. 
+
+```go
+package main_test
+
+import (
+	"testing"
+	"github.com/instana/deep"
+)
+
+func Example(t *testing.T) {
+	type student struct {
+		Name string
+		Age  int
+		Arr  []string
+	}
+
+	left := student{"mark", 10, []string{"same1", "different", "same2"}}
+	right := student{"mark", 10, []string{"same1", "same2", "different"}}
+
+	diff, isSame := deep.EqualSubset(left, right, nil, true, false)
+}
+```
