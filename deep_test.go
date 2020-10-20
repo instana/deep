@@ -1451,13 +1451,13 @@ func TestEqualSubsetWithEmptyString(t *testing.T) {
 		Arr  []string
 	}
 
-	left := student{"", 10, []string{"same1", "same2", "really-different"}}
+	left := student{"", 10, []string{"same1", "same2", "different"}}
 	right := student{"mark", 10, []string{"same1", "same2", "different"}}
 
 	_, isSame := deep.EqualSubset(left, right, nil,true, false)
 
-	if isSame {
-		t.Error("This should not be a subset match")
+	if !isSame {
+		t.Error("This should be a subset match")
 	}
 }
 
