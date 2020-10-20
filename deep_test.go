@@ -1530,7 +1530,6 @@ func TestEqualSubsetWithNils(t *testing.T) {
 	}
 }
 
-
 func TestEqualSubsetWithNestedStruct(t *testing.T) {
 	type Nested struct {
 		NestedName string
@@ -1547,6 +1546,34 @@ func TestEqualSubsetWithNestedStruct(t *testing.T) {
 	nestedRight := &Nested{"I AM NESTED!!!"}
 	left := student{ "mark",  10, nestedLeft, []string{"same1", "same2"}}
 	right := student{"mark", 10, nestedRight, []string{"same1", "same2"}}
+
+	diff, isSame := deep.EqualSubset(left, right, nil,true, false)
+
+	if !isSame {
+		for i, s := range diff {
+			println(fmt.Sprint(i) + " " + s)
+		}
+		t.Error("This should be a subset match")
+	}
+}
+
+
+func TestEqualSubsetWithNestedStructInArray(t *testing.T) {
+	type Nested struct {
+		NestedName string
+	}
+
+	type student struct {
+		Name string
+		Age  int
+		Nested []Nested
+		Arr  []string
+	}
+
+	nestedLeft := Nested{"I AM NESTED!!!"}
+	nestedRight := Nested{"I AM NESTED!!!"}
+	left := student{ "mark",  10, []Nested{nestedLeft}, []string{"same1", "same2"}}
+	right := student{"mark", 10, []Nested{nestedRight}, []string{"same1", "same2"}}
 
 	diff, isSame := deep.EqualSubset(left, right, nil,true, false)
 

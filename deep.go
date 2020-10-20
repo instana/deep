@@ -368,6 +368,9 @@ func (c *cmp) equals(a, b reflect.Value, level int, silent bool) bool {
 	/////////////////////////////////////////////////////////////////////
 
 	case reflect.Float32, reflect.Float64:
+		if c.subsetMatch && a.Float() == 0 {
+			return true
+		}
 		// Round floats to FloatPrecision decimal places to compare with
 		// user-defined precision. As is commonly know, floats have "imprecision"
 		// such that 0.1 becomes 0.100000001490116119384765625. This cannot
@@ -389,12 +392,18 @@ func (c *cmp) equals(a, b reflect.Value, level int, silent bool) bool {
 		}
 		return true
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if c.subsetMatch && a.Int() == 0 {
+			return true
+		}
 		if a.Int() != b.Int() {
 			c.saveDiff(a.Int(), b.Int(), silent)
 			return false
 		}
 		return true
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if c.subsetMatch && a.Uint() == 0 {
+			return true
+		}
 		if a.Uint() != b.Uint() {
 			c.saveDiff(a.Uint(), b.Uint(), silent)
 			return false
