@@ -402,7 +402,7 @@ func (c *cmp) equals(a, b reflect.Value, level int, silent bool) bool {
 			return true
 		}
 		if a.String() != b.String() {
-			c.saveDiff(a.String(), b.String(), silent)
+			c.saveDiff(a.String(), b.String() + " " + string(len(a.String())), silent)
 			return false
 		}
 		return true
