@@ -515,7 +515,11 @@ func (c *cmp) CompareSliceWithoutOrdering(a reflect.Value, b reflect.Value, leve
 					}
 				}
 				if !found {
-					c.saveDiff(a.Index(i), "<missing>", silent)
+					if bLen == 1 {
+						c.saveDiff(a.Index(i), b.Index(0), silent)
+					} else {
+						c.saveDiff(a.Index(i), "<missing>", silent)
+					}
 					isSame = false
 				}
 			}
